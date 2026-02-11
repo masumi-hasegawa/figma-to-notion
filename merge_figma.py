@@ -14,13 +14,13 @@ FIGMA_NODE_IDS = os.environ.get('FIGMA_NODE_IDS', '').split(',')
 
 # デザイン設定
 DESIGN_CONFIG = {
-    'border_width': 10,  # 白枠の幅
+    'border_width': 12,  # 外側白枠
     'border_color': (255, 255, 255, 255),  # 白
-    'shadow_blur': 44,  # ぼかし
+    'shadow_blur': 61,  # ぼかし
     'shadow_spread': 0,  # 広がり
     'shadow_color': (66, 59, 23, int(255 * 0.15)),  # #423B17, 15%
-    'shadow_offset': (16, 16),  # 影の位置
-    'corner_radius': 10,  # 角丸
+    'shadow_offset': (22, 22),  # 影の位置 X=22, Y=22
+    'corner_radius': 12,  # 角丸
     'canvas_width': 1000,  # 最終画像の幅
     'canvas_height': 600,  # 最終画像の高さ
     'background_color': (0, 0, 0, 0)  # 背景色（透過）
