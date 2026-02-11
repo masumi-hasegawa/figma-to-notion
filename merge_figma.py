@@ -90,7 +90,7 @@ def upload_to_notion(name, merged_image, figma_url):
     notion.pages.create(
         parent={"database_id": NOTION_DATABASE_ID},
         properties={
-            "Name": {"title": [{"text": {"content": name}}]},
+            "画面名": {"title": [{"text": {"content": name}}]},
             "Figma URL": {"url": figma_url}
         }
     )
