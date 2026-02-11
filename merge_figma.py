@@ -80,14 +80,29 @@ def merge_image_with_template(figma_image_url):
 
 def upload_to_notion(name, merged_image, figma_url):
     """Notionに登録"""
+    # imagesディレクトリを作成
+    os.makedirs('images', exist_ok=True)
+    
+    # 画像を保存（ファイル名をサニタイズ）
+    safe_name = "".join(c for c in name if c.isalnum() or c in (' ', '-', '_')).rstrip()
+    safe_name = safe_name.replace(' ', '_')
+    image_filename = f"{safe_name}.png"
+    image_path = f"images/{image_filename}"
+    
+    # 画像を保存
+    with open(image_path, 'wb') as f:
+        merged_image.seek(0)
+        f.write(merged_image.read())
+    
+    # GitHub Pagesの公開URL
+    github_username = "masumi-hasegawa"
+    repo_name = "figma-to-notion"
+    image_url = f"https://{github_username}.github.io/{repo_name}/{image_path}"
+    
+    # Notionに登録
     notion = Client(auth=NOTION_TOKEN)
     
-    # 画像をアップロード（一時的にどこかに保存する必要があるため、外部サービスを使うか、直接base64で埋め込む）
-    # ここでは簡略化のため、Notion APIの制約上、外部URLが必要
-    # 実際には画像をどこかにホストする必要があります
-    
-    # ページを作成
-    notion.pages.create(
+    page = notion.pages.create(
         parent={"database_id": NOTION_DATABASE_ID},
         properties={
             "画面名": {"title": [{"text": {"content": name}}]},
@@ -95,7 +110,25 @@ def upload_to_notion(name, merged_image, figma_url):
         }
     )
     
+    # ページに画像ブロックを追加
+    notion.blocks.children.append(
+        block_id=page['id'],
+        children=[
+            {
+                "object": "block",
+                "type": "image",
+                "image": {
+                    "type": "external",
+                    "external": {
+                        "url": image_url
+                    }
+                }
+            }
+        ]
+    )
+    
     print(f"✓ {name} をNotionに登録しました")
+    print(f"  画像URL: {image_url}")
 
 def main():
     print("Figma画像を取得中...")
@@ -113,7 +146,7 @@ def main():
         figma_url = f"https://www.figma.com/file/{FIGMA_FILE_ID}?node-id={img['node_id']}"
         upload_to_notion(img['name'], merged, figma_url)
     
-    print("完了！")
+    print("完了!")
 
 if __name__ == "__main__":
     main()
