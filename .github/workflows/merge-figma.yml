@@ -1,0 +1,35 @@
+name: Merge Figma to Notion
+
+on:
+  schedule:
+    # 毎週月曜日の朝9時（JST）に実行
+    - cron: '0 0 * * 1'
+  workflow_dispatch: # 手動実行も可能
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Run merge script
+      env:
+        FIGMA_TOKEN: ${{ secrets.FIGMA_TOKEN }}
+        NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        TEMPLATE_IMAGE_URL: ${{ secrets.TEMPLATE_IMAGE_URL }}
+        FIGMA_FILE_ID: ${{ secrets.FIGMA_FILE_ID }}
+        FIGMA_NODE_IDS: ${{ secrets.FIGMA_NODE_IDS }}
+      run: |
+        python merge_figma.py
