@@ -80,8 +80,8 @@ def get_figma_images():
             updated_versions[node_id] = last_modified
             continue
         
-        # 画像URLを取得
-        url = f"https://api.figma.com/v1/images/{FIGMA_FILE_ID}?ids={node_id}&format=png&scale=2"
+        # 画像URLを取得（高解像度）
+        url = f"https://api.figma.com/v1/images/{FIGMA_FILE_ID}?ids={node_id}&format=png&scale=4"
         response = requests.get(url, headers=headers)
         data = response.json()
         
@@ -147,20 +147,22 @@ def merge_image_with_template(figma_image_url):
     # 角丸を追加
     figma_rounded = add_rounded_corners(figma_resized, PHONE_POSITION['corner_radius'])
     
-    # 回転
+    # 回転（角度がある場合のみ）
     if PHONE_POSITION['angle'] != 0:
+        # 透明な背景で回転
         figma_rounded = figma_rounded.rotate(
-            PHONE_POSITION['angle'], 
+            -PHONE_POSITION['angle'],  # PILは反時計回りなので符号を反転
             expand=True, 
+            resample=Image.Resampling.BICUBIC,
             fillcolor=(0, 0, 0, 0)
         )
     
-    # 中央配置用のオフセット計算
-    offset_x = PHONE_POSITION['x'] + (target_width - figma_rounded.width) // 2
-    offset_y = PHONE_POSITION['y'] + (target_height - figma_rounded.height) // 2
+    # 配置位置を計算（回転後のサイズを考慮）
+    paste_x = PHONE_POSITION['x']
+    paste_y = PHONE_POSITION['y']
     
     # 合成
-    template.paste(figma_rounded, (offset_x, offset_y), figma_rounded)
+    template.paste(figma_rounded, (paste_x, paste_y), figma_rounded)
     
     # BytesIOに保存
     output = BytesIO()
