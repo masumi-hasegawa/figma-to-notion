@@ -23,7 +23,9 @@ DESIGN_CONFIG = {
     'corner_radius': 12,  # 角丸
     'canvas_width': 1000,  # 最終画像の幅
     'canvas_height': 600,  # 最終画像の高さ
-    'background_color': (0, 0, 0, 0)  # 背景色（透過）
+    'background_color': (0, 0, 0, 0),  # 背景色（透過）
+    'max_img_width_ratio': 0.5,  # キャンバス幅に対する画像の最大幅（50%）
+    'max_img_height_ratio': 0.85  # キャンバス高さに対する画像の最大高さ（85%）
 }
 
 # バージョン管理ファイル
@@ -122,6 +124,29 @@ def create_styled_image(figma_image_url):
     figma_response = requests.get(figma_image_url)
     figma_img = Image.open(BytesIO(figma_response.content)).convert('RGBA')
     
+    # キャンバスサイズを取得
+    canvas_width = DESIGN_CONFIG['canvas_width']
+    canvas_height = DESIGN_CONFIG['canvas_height']
+    
+    # 画像をキャンバスに対して適切にリサイズ
+    max_img_width = int(canvas_width * DESIGN_CONFIG['max_img_width_ratio'])
+    max_img_height = int(canvas_height * DESIGN_CONFIG['max_img_height_ratio'])
+    
+    # アスペクト比を維持してリサイズ
+    img_ratio = figma_img.width / figma_img.height
+    target_ratio = max_img_width / max_img_height
+    
+    if img_ratio > target_ratio:
+        # 横長の場合、幅を基準に
+        new_width = max_img_width
+        new_height = int(new_width / img_ratio)
+    else:
+        # 縦長の場合、高さを基準に
+        new_height = max_img_height
+        new_width = int(new_height * img_ratio)
+    
+    figma_img = figma_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
     # 角丸を追加
     figma_rounded = add_rounded_corners(figma_img, DESIGN_CONFIG['corner_radius'])
     
@@ -135,10 +160,6 @@ def create_styled_image(figma_image_url):
     bordered.paste(figma_rounded, (border_width, border_width), figma_rounded)
     
     # 固定サイズのキャンバスを作成（1000x600px、透過背景）
-    canvas_width = DESIGN_CONFIG['canvas_width']
-    canvas_height = DESIGN_CONFIG['canvas_height']
-    
-    # 背景を作成（透過）
     final = Image.new('RGBA', (canvas_width, canvas_height), DESIGN_CONFIG['background_color'])
     
     # 影用のレイヤーを作成
