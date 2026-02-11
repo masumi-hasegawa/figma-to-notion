@@ -1,7 +1,7 @@
 import os
 import json
 import requests
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 from io import BytesIO
 from notion_client import Client
 
@@ -9,18 +9,19 @@ from notion_client import Client
 FIGMA_TOKEN = os.environ.get('FIGMA_TOKEN')
 NOTION_TOKEN = os.environ.get('NOTION_TOKEN')
 NOTION_DATABASE_ID = os.environ.get('NOTION_DATABASE_ID')
-TEMPLATE_IMAGE_URL = os.environ.get('TEMPLATE_IMAGE_URL')
 FIGMA_FILE_ID = os.environ.get('FIGMA_FILE_ID')
 FIGMA_NODE_IDS = os.environ.get('FIGMA_NODE_IDS', '').split(',')
 
-# スマホ画面の位置と設定（調整済み）
-PHONE_POSITION = {
-    'x': 420,
-    'y': 340,
-    'width': 360,
-    'height': 640,
-    'angle': -2,  # 左に2度傾いている
-    'corner_radius': 30  # 角丸の半径
+# デザイン設定
+DESIGN_CONFIG = {
+    'border_width': 16,  # 白枠の幅
+    'border_color': (255, 255, 255, 255),  # 白
+    'shadow_blur': 44,  # ぼかし
+    'shadow_spread': 0,  # 広がり
+    'shadow_color': (66, 59, 23, int(255 * 0.15)),  # #423B17, 15%
+    'shadow_offset': (16, 16),  # 影の位置
+    'corner_radius': 30,  # 角丸
+    'background_color': (245, 245, 245, 255)  # 背景色（薄いグレー）
 }
 
 # バージョン管理ファイル
@@ -81,7 +82,7 @@ def get_figma_images():
             continue
         
         # 画像URLを取得（高解像度）
-        url = f"https://api.figma.com/v1/images/{FIGMA_FILE_ID}?ids={node_id}&format=png&scale=4"
+        url = f"https://api.figma.com/v1/images/{FIGMA_FILE_ID}?ids={node_id}&format=png&scale=3"
         response = requests.get(url, headers=headers)
         data = response.json()
         
@@ -103,75 +104,82 @@ def get_figma_images():
 
 def add_rounded_corners(img, radius):
     """画像に角丸を追加"""
-    # 角丸マスクを作成
     mask = Image.new('L', img.size, 0)
     draw = ImageDraw.Draw(mask)
     draw.rounded_rectangle([(0, 0), img.size], radius=radius, fill=255)
     
-    # アルファチャンネルを追加
     img = img.convert('RGBA')
     img.putalpha(mask)
     
     return img
 
-def merge_image_with_template(figma_image_url):
-    """Figma画像をテンプレートに合成"""
-    # テンプレート画像を取得
-    template_response = requests.get(TEMPLATE_IMAGE_URL)
-    template = Image.open(BytesIO(template_response.content)).convert('RGBA')
+def create_styled_image(figma_image_url):
+    """Figma画像にスタイル（白枠+ドロップシャドウ）を適用"""
     
     # Figma画像を取得
     figma_response = requests.get(figma_image_url)
     figma_img = Image.open(BytesIO(figma_response.content)).convert('RGBA')
     
-    # アスペクト比を維持してリサイズ
-    # iPhoneの標準的なアスペクト比は約19.5:9
-    target_width = PHONE_POSITION['width']
-    target_height = PHONE_POSITION['height']
-    
-    # Figma画像のアスペクト比を計算
-    figma_aspect = figma_img.width / figma_img.height
-    target_aspect = target_width / target_height
-    
-    if figma_aspect > target_aspect:
-        # 横が長い場合、幅を基準にリサイズ
-        new_width = target_width
-        new_height = int(target_width / figma_aspect)
-    else:
-        # 縦が長い場合、高さを基準にリサイズ
-        new_height = target_height
-        new_width = int(target_height * figma_aspect)
-    
-    figma_resized = figma_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-    
     # 角丸を追加
-    figma_rounded = add_rounded_corners(figma_resized, PHONE_POSITION['corner_radius'])
+    figma_rounded = add_rounded_corners(figma_img, DESIGN_CONFIG['corner_radius'])
     
-    # 回転（角度がある場合のみ）
-    if PHONE_POSITION['angle'] != 0:
-        # 透明な背景で回転
-        figma_rounded = figma_rounded.rotate(
-            -PHONE_POSITION['angle'],  # PILは反時計回りなので符号を反転
-            expand=True, 
-            resample=Image.Resampling.BICUBIC,
-            fillcolor=(0, 0, 0, 0)
-        )
+    # 白枠を追加
+    border_width = DESIGN_CONFIG['border_width']
+    bordered_size = (
+        figma_rounded.width + border_width * 2,
+        figma_rounded.height + border_width * 2
+    )
+    bordered = Image.new('RGBA', bordered_size, DESIGN_CONFIG['border_color'])
+    bordered.paste(figma_rounded, (border_width, border_width), figma_rounded)
     
-    # 配置位置を計算（回転後のサイズを考慮）
-    paste_x = PHONE_POSITION['x']
-    paste_y = PHONE_POSITION['y']
+    # 影用のキャンバスを作成（余白を追加）
+    shadow_margin = DESIGN_CONFIG['shadow_blur'] + 50
+    canvas_size = (
+        bordered.width + shadow_margin * 2,
+        bordered.height + shadow_margin * 2
+    )
     
-    # 合成
-    template.paste(figma_rounded, (paste_x, paste_y), figma_rounded)
+    # 背景を作成
+    final = Image.new('RGBA', canvas_size, DESIGN_CONFIG['background_color'])
+    
+    # 影を作成
+    shadow = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+    shadow_draw = ImageDraw.Draw(shadow)
+    
+    # 影の位置とサイズを計算
+    shadow_x = shadow_margin + DESIGN_CONFIG['shadow_offset'][0]
+    shadow_y = shadow_margin + DESIGN_CONFIG['shadow_offset'][1]
+    shadow_box = [
+        shadow_x,
+        shadow_y,
+        shadow_x + bordered.width,
+        shadow_y + bordered.height
+    ]
+    
+    # 影を描画
+    shadow_draw.rounded_rectangle(
+        shadow_box,
+        radius=DESIGN_CONFIG['corner_radius'] + border_width,
+        fill=DESIGN_CONFIG['shadow_color']
+    )
+    
+    # 影をぼかす
+    shadow = shadow.filter(ImageFilter.GaussianBlur(radius=DESIGN_CONFIG['shadow_blur']))
+    
+    # 影を合成
+    final = Image.alpha_composite(final, shadow)
+    
+    # 白枠付き画像を合成
+    final.paste(bordered, (shadow_margin, shadow_margin), bordered)
     
     # BytesIOに保存
     output = BytesIO()
-    template.save(output, format='PNG')
+    final.save(output, format='PNG')
     output.seek(0)
     
     return output
 
-def upload_to_notion(name, merged_image, figma_url):
+def upload_to_notion(name, styled_image, figma_url):
     """Notionに登録"""
     import base64
     
@@ -186,8 +194,8 @@ def upload_to_notion(name, merged_image, figma_url):
     
     # 保存
     with open(image_path, 'wb') as f:
-        merged_image.seek(0)
-        f.write(merged_image.read())
+        styled_image.seek(0)
+        f.write(styled_image.read())
     
     # GitHub Pagesの公開URL
     github_username = "masumi-hasegawa"
@@ -238,12 +246,12 @@ def main():
     for i, img in enumerate(figma_images):
         print(f"処理中 ({i+1}/{len(figma_images)}): {img['name']}")
         
-        # 画像を合成
-        merged = merge_image_with_template(img['url'])
+        # スタイルを適用
+        styled = create_styled_image(img['url'])
         
         # Notionに登録
         figma_url = f"https://www.figma.com/file/{FIGMA_FILE_ID}?node-id={img['node_id']}"
-        upload_to_notion(img['name'], merged, figma_url)
+        upload_to_notion(img['name'], styled, figma_url)
         
         print()
     
