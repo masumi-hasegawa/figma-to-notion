@@ -33,3 +33,11 @@ jobs:
         FIGMA_NODE_IDS: ${{ secrets.FIGMA_NODE_IDS }}
       run: |
         python merge_figma.py
+    
+    - name: Commit and push images
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add images/
+        git diff --quiet && git diff --staged --quiet || git commit -m "Add merged Figma screenshots"
+        git push
