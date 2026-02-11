@@ -14,14 +14,16 @@ FIGMA_NODE_IDS = os.environ.get('FIGMA_NODE_IDS', '').split(',')
 
 # デザイン設定
 DESIGN_CONFIG = {
-    'border_width': 16,  # 白枠の幅
+    'border_width': 10,  # 白枠の幅
     'border_color': (255, 255, 255, 255),  # 白
     'shadow_blur': 44,  # ぼかし
     'shadow_spread': 0,  # 広がり
     'shadow_color': (66, 59, 23, int(255 * 0.15)),  # #423B17, 15%
     'shadow_offset': (16, 16),  # 影の位置
-    'corner_radius': 30,  # 角丸
-    'background_color': (245, 245, 245, 255)  # 背景色（薄いグレー）
+    'corner_radius': 10,  # 角丸
+    'canvas_width': 1000,  # 最終画像の幅
+    'canvas_height': 600,  # 最終画像の高さ
+    'background_color': (0, 0, 0, 0)  # 背景色（透過）
 }
 
 # バージョン管理ファイル
@@ -132,18 +134,20 @@ def create_styled_image(figma_image_url):
     bordered = Image.new('RGBA', bordered_size, DESIGN_CONFIG['border_color'])
     bordered.paste(figma_rounded, (border_width, border_width), figma_rounded)
     
-    # 影用のキャンバスを作成（余白を追加）
+    # 固定サイズのキャンバスを作成（1000x600px、透過背景）
+    canvas_width = DESIGN_CONFIG['canvas_width']
+    canvas_height = DESIGN_CONFIG['canvas_height']
+    
+    # 背景を作成（透過）
+    final = Image.new('RGBA', (canvas_width, canvas_height), DESIGN_CONFIG['background_color'])
+    
+    # 影用のレイヤーを作成
     shadow_margin = DESIGN_CONFIG['shadow_blur'] + 50
-    canvas_size = (
+    shadow_layer_size = (
         bordered.width + shadow_margin * 2,
         bordered.height + shadow_margin * 2
     )
-    
-    # 背景を作成
-    final = Image.new('RGBA', canvas_size, DESIGN_CONFIG['background_color'])
-    
-    # 影を作成
-    shadow = Image.new('RGBA', canvas_size, (0, 0, 0, 0))
+    shadow = Image.new('RGBA', shadow_layer_size, (0, 0, 0, 0))
     shadow_draw = ImageDraw.Draw(shadow)
     
     # 影の位置とサイズを計算
@@ -166,11 +170,15 @@ def create_styled_image(figma_image_url):
     # 影をぼかす
     shadow = shadow.filter(ImageFilter.GaussianBlur(radius=DESIGN_CONFIG['shadow_blur']))
     
-    # 影を合成
-    final = Image.alpha_composite(final, shadow)
+    # 影をキャンバス中央に配置
+    shadow_x_on_canvas = (canvas_width - shadow.width) // 2
+    shadow_y_on_canvas = (canvas_height - shadow.height) // 2
+    final.paste(shadow, (shadow_x_on_canvas, shadow_y_on_canvas), shadow)
     
-    # 白枠付き画像を合成
-    final.paste(bordered, (shadow_margin, shadow_margin), bordered)
+    # 白枠付き画像をキャンバス中央に配置
+    bordered_x = (canvas_width - bordered.width) // 2
+    bordered_y = (canvas_height - bordered.height) // 2
+    final.paste(bordered, (bordered_x, bordered_y), bordered)
     
     # BytesIOに保存
     output = BytesIO()
