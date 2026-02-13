@@ -16,7 +16,7 @@ FIGMA_NODE_IDS = os.environ.get('FIGMA_NODE_IDS', '').split(',')
 DESIGN_CONFIG = {
     'border_width': 12,  # 外側白枠
     'border_color': (255, 255, 255, 255),  # 白
-    'shadow_blur': 61,  # ぼかし
+    'shadow_blur': 22,  # ぼかし22px
     'shadow_spread': 0,  # 広がり
     'shadow_color': (66, 59, 23, int(255 * 0.15)),  # #423B17, 15%
     'shadow_offset': (22, 22),  # 影の位置 X=22, Y=22
@@ -147,16 +147,25 @@ def create_styled_image(figma_image_url):
     
     figma_img = figma_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
     
-    # 角丸を追加
+    # 角丸を追加（スクリーンショット）
     figma_rounded = add_rounded_corners(figma_img, DESIGN_CONFIG['corner_radius'])
     
-    # 白枠を追加
+    # 白枠を追加（角丸あり）
     border_width = DESIGN_CONFIG['border_width']
     bordered_size = (
         figma_rounded.width + border_width * 2,
         figma_rounded.height + border_width * 2
     )
-    bordered = Image.new('RGBA', bordered_size, DESIGN_CONFIG['border_color'])
+    
+    # 白枠用の角丸画像を作成
+    bordered = Image.new('RGBA', bordered_size, (0, 0, 0, 0))
+    bordered_draw = ImageDraw.Draw(bordered)
+    bordered_draw.rounded_rectangle(
+        [(0, 0), bordered_size],
+        radius=DESIGN_CONFIG['corner_radius'],
+        fill=DESIGN_CONFIG['border_color']
+    )
+    # スクリーンショットを中央に配置
     bordered.paste(figma_rounded, (border_width, border_width), figma_rounded)
     
     # 固定サイズのキャンバスを作成（1000x600px、透過背景）
@@ -181,10 +190,10 @@ def create_styled_image(figma_image_url):
         shadow_y + bordered.height
     ]
     
-    # 影を描画
+    # 影を描画（角丸）
     shadow_draw.rounded_rectangle(
         shadow_box,
-        radius=DESIGN_CONFIG['corner_radius'] + border_width,
+        radius=DESIGN_CONFIG['corner_radius'],
         fill=DESIGN_CONFIG['shadow_color']
     )
     
