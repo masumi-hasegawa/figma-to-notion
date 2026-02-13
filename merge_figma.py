@@ -18,7 +18,7 @@ DESIGN_CONFIG = {
     'border_color': (255, 255, 255, 255),  # 白
     'shadow_blur': 22,  # ぼかし22px
     'shadow_spread': 0,  # 広がり
-    'shadow_color': (66, 59, 23, int(255 * 0.15)),  # #423B17, 25%
+    'shadow_color': (66, 59, 23, int(255 * 0.15)),  # #423B17, 40%
     'shadow_offset': (22, 22),  # 影の位置 X=22, Y=22
     'corner_radius': 12,  # 角丸
     'canvas_width': 1000,  # 最終画像の幅
