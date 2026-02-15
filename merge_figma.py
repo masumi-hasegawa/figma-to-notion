@@ -16,7 +16,7 @@ NOTION_DATABASE_ID = os.environ.get('NOTION_DATABASE_ID')
 # デザイン設定
 DESIGN_CONFIG = {
     'border_width': 12,
-    'border_color': (255, 255, 255, 255),
+    'border_color': (239, 239, 239, 255),  # #EFEFEF
     'shadow_blur': 22,
     'shadow_spread': 0,
     'shadow_color': (66, 59, 23, int(255 * 0.15)),
