@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw, ImageFilter
 from io import BytesIO
 from notion_client import Client
 from datetime import datetime
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 
 # 環境変数から取得
 FIGMA_TOKEN = os.environ.get('FIGMA_TOKEN')
@@ -293,7 +293,8 @@ def save_image(name, styled_image):
         f.write(styled_image.read())
 
     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    image_url = f"https://{GITHUB_USERNAME}.github.io/{GITHUB_REPO}/{image_path}?v={timestamp}"
+    encoded_path = quote(image_path, safe='/')
+    image_url = f"https://{GITHUB_USERNAME}.github.io/{GITHUB_REPO}/{encoded_path}?v={timestamp}"
 
     return image_path, image_url
 
